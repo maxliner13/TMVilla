@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TM Villa — Construction Tracker 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #1F3864; --blue: #2E75B6; --lblue: #DAEEF3;
+    --orange: #ED7D31; --lorange: #FCE4D6;
+    --green: #548235; --lgreen: #E2EFDA;
+    --red: #C00000; --lred: #FFCCCC;
+    --yellow: #FFD966; --lyellow: #FFF2CC;
+    --gray: #595959; --lgray: #F5F5F5;
+    --teal: #00897B; --purple: #7030A0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #F0F4F8; color: #1a1a2e; min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--navy); color: white; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .header-left { display: flex; align-items: center; gap: 1rem; }
+  .hotel-icon { width: 36px; height: 36px; background: var(--orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .header h1 { font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
+  .header-sub { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 1rem; }
+  .last-update { font-size: 11px; opacity: 0.7; text-align: right; }
+  .refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.2s; }
+  .refresh-btn:hover { background: rgba(255,255,255,0.25); }
+
+  /* BANNER */
+  .gsheet-banner { background: #E8F5E9; border-left: 4px solid #43A047; padding: 10px 2rem; font-size: 13px; color: #2E7D32; display: flex; align-items: center; gap: 8px; }
+  .gsheet-banner input { flex: 1; padding: 6px 10px; border: 1px solid #A5D6A7; border-radius: 6px; font-size: 13px; color: #1a1a2e; background: white; max-width: 520px; }
+  .gsheet-banner button { background: #43A047; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .gsheet-banner button:hover { background: #388E3C; }
+
+  /* LAYOUT */
+  .main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+  /* KPI CARDS */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .kpi-card { background: white; border-radius: 12px; padding: 1rem 1.25rem; border: 1px solid #e0e6ee; }
+  .kpi-label { font-size: 11px; color: var(--gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kpi-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .kpi-sub { font-size: 12px; margin-top: 6px; }
+  .kpi-card.total .kpi-value { color: var(--navy); }
+  .kpi-card.done .kpi-value { color: var(--green); }
+  .kpi-card.inprog .kpi-value { color: var(--blue); }
+  .kpi-card.overdue .kpi-value { color: var(--red); }
+  .kpi-card.urgent .kpi-value { color: var(--orange); }
+  .kpi-card.pct .kpi-value { color: var(--teal); }
+
+  /* SECTION GRID */
+  .section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.5rem; }
+  .section-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  @media(max-width: 900px) { .section-grid, .section-grid.three { grid-template-columns: 1fr; } }
+
+  /* CARDS */
+  .card { background: white; border-radius: 12px; padding: 1.25rem; border: 1px solid #e0e6ee; }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* PROGRESS BARS */
+  .cat-row { margin-bottom: 14px; }
+  .cat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .cat-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .cat-pct { font-size: 13px; font-weight: 700; }
+  .cat-counts { font-size: 11px; color: var(--gray); }
+  .bar-track { height: 10px; background: #EEF2F7; border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; transition: width 1s ease; }
+
+  /* ALERT TABLE */
+  .alert-filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filter-btn { padding: 4px 12px; border-radius: 20px; border: 1px solid #DDE3EC; background: white; font-size: 12px; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .filter-btn:hover, .filter-btn.active { color: white; border-color: transparent; }
+  .filter-btn.f-all.active { background: var(--navy); }
+  .filter-btn.f-red.active { background: var(--red); }
+  .filter-btn.f-orange.active { background: var(--orange); }
+  .filter-btn.f-yellow.active { background: #B7950B; }
+  .filter-btn.f-green.active { background: var(--green); }
+  .filter-btn.f-done.active { background: var(--teal); }
+
+  .alert-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .alert-table th { background: #F8FAFC; color: var(--gray); font-weight: 700; padding: 8px 10px; text-align: left; border-bottom: 2px solid #EEF2F7; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+  .alert-table td { padding: 8px 10px; border-bottom: 1px solid #F0F4F8; vertical-align: middle; }
+  .alert-table tr:hover td { background: #FAFBFD; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .badge-red { background: var(--lred); color: var(--red); }
+  .badge-orange { background: var(--lorange); color: #8B4513; }
+  .badge-yellow { background: var(--lyellow); color: #7F6000; }
+  .badge-green { background: var(--lgreen); color: var(--green); }
+  .badge-blue { background: var(--lblue); color: #1A5276; }
+  .badge-done { background: #E0F2F1; color: var(--teal); }
+
+  .task-name { font-weight: 500; color: #1a1a2e; max-width: 220px; }
+  .task-cat { font-size: 11px; color: var(--gray); }
+  .mini-prog { width: 60px; height: 6px; background: #EEF2F7; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 4px; }
+  .mini-prog-fill { height: 100%; border-radius: 3px; }
+
+  /* CHART */
+  .chart-wrap { position: relative; height: 200px; }
+
+  /* TIMELINE */
+  .timeline-item { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-start; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .tl-content { flex: 1; }
+  .tl-title { font-size: 12px; font-weight: 600; }
+  .tl-meta { font-size: 11px; color: var(--gray); }
+
+  /* FOOTER */
+  .footer { text-align: center; font-size: 11px; color: #AAB; padding: 1rem; margin-top: 1rem; }
+
+  /* LOADING */
+  .loading { text-align: center; padding: 3rem; color: var(--gray); font-size: 14px; }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #DDE3EC; border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 500px; }
+  .modal h3 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 1rem; }
+  .modal p { font-size: 13px; line-height: 1.7; color: #444; margin-bottom: 0.75rem; }
+  .modal code { background: #F0F4F8; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+  .modal-close { float: right; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--gray); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="hotel-icon">🏨</div>
+    <div>
+      <div class="header h1" style="font-size:17px;font-weight:700;">TM Villa</div>
+      <div class="header-sub">Construction Tracker 2026</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="last-update" id="lastUpdate">กำลังโหลด...</div>
+    <button class="refresh-btn" onclick="loadData()">⟳ รีเฟรช</button>
+    <button class="refresh-btn" onclick="document.getElementById('helpModal').classList.add('show')">? วิธีใช้</button>
+  </div>
+</div>
+
+<div class="gsheet-banner">
+  <span style="white-space:nowrap;font-weight:600;">🔗 Google Sheets URL:</span>
+  <input type="text" id="sheetUrl" placeholder="วาง URL Google Sheets ที่แชร์แบบ Public แล้วกด โหลด" />
+  <button onclick="connectSheet()">โหลดข้อมูล</button>
+  <button onclick="loadDemoData()" style="background:#888;">ดู Demo</button>
+</div>
+
+<div class="main" id="mainContent">
+  <div class="loading">
+    <br><br>
+    <div style="font-size:15px;color:#888;">กรอก URL Google Sheets ด้านบนแล้วกด <strong>โหลดข้อมูล</strong><br>หรือกด <strong>ดู Demo</strong> เพื่อดูตัวอย่าง</div>
+    <br>
+  </div>
+</div>
+
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('helpModal').classList.remove('show')">✕</button>
+    <h3>📋 วิธีเชื่อมกับ Google Sheets</h3>
+    <p><strong>ขั้นตอน:</strong></p>
+    <p>1. อัปโหลด Excel ไป Google Drive → เปิดด้วย Google Sheets</p>
+    <p>2. ไปที่ Sheet ชื่อ <code>DATA</code></p>
+    <p>3. คลิก <strong>File → Share → Publish to web</strong></p>
+    <p>4. เลือก Sheet <code>DATA</code> → Format <code>CSV</code> → กด Publish</p>
+    <p>5. Copy URL ที่ได้ → วางในช่อง URL ด้านบน</p>
+    <p style="background:#FFF3E0;padding:8px;border-radius:6px;margin-top:8px;">⚠️ ต้องใช้ <strong>Publish to web URL</strong> (ไม่ใช่ Share link ธรรมดา)</p>
+    <p>URL จะมีหน้าตาแบบนี้:<br><code style="font-size:11px;">https://docs.google.com/spreadsheets/d/.../pub?...output=csv</code></p>
+  </div>
+</div>
+
+<script>
+const TODAY = new Date();
+TODAY.setHours(0,0,0,0);
+
+function daysBetween(a, b) {
+  return Math.round((b - a) / 86400000);
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  let d;
+  if (s.includes('/')) {
+    const p = s.split('/');
+    if (p.length === 3) d = p[0].length === 4 ? new Date(+p[0],+p[1]-1,+p[2]) : new Date(+p[2],+p[1]-1,+p[0]);
+  } else if (s.includes('-')) {
+    d = new Date(s);
+  } else if (!isNaN(+s)) {
+    d = new Date(Date.UTC(1899,11,30) + (+s)*86400000);
+  }
+  return (d && !isNaN(d)) ? d : null;
+}
+
+function parsePct(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  v = String(v).trim().replace('%','');
+  const n = parseFloat(v);
+  if (isNaN(n)) return 0;
+  return n > 1 ? n / 100 : n;
+}
+
+function urgency(pct, endDate) {
+  if (pct >= 1) return { label: '✅ เสร็จแล้ว', cls: 'badge-done', days: null };
+  if (!endDate) return { label: '—', cls: 'badge-blue', days: null };
+  const d = daysBetween(TODAY, endDate);
+  if (d < 0)  return { label: '🔴 เกินกำหนด', cls: 'badge-red', days: d };
+  if (d <= 3)  return { label: '🔴 วิกฤต ≤3วัน', cls: 'badge-red', days: d };
+  if (d <= 7)  return { label: '🟠 เร่งด่วน ≤7วัน', cls: 'badge-orange', days: d };
+  if (d <= 14) return { label: '🟡 เฝ้าระวัง ≤14วัน', cls: 'badge-yellow', days: d };
+  return { label: '🟢 ปกติ', cls: 'badge-green', days: d };
+}
+
+function statusLabel(pct) {
+  if (pct >= 1)   return { t: '✅ เสร็จ', cls: 'badge-done' };
+  if (pct >= 0.5) return { t: '🔄 กำลังทำ', cls: 'badge-blue' };
+  if (pct > 0)    return { t: '⏳ เริ่มแล้ว', cls: 'badge-orange' };
+  return { t: '❌ ยังไม่เริ่ม', cls: 'badge-red' };
+}
+
+const CAT_META = {
+  '1': { name: '⚡ งานไฟฟ้า',       color: '#ED7D31' },
+  '2': { name: '📡 งานสื่อสาร',      color: '#2E75B6' },
+  '3': { name: '🔐 IoT Security',    color: '#548235' },
+  '4': { name: '📹 งาน CCTV',       color: '#C55A11' },
+};
+
+let allTasks = [];
+
+function parseCSV(csv) {
+  const lines = csv.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+  const idxOf = k => headers.findIndex(h => h.includes(k));
+  const iL1=idxOf('l1_id'), iTask=idxOf('task'), iLead=idxOf('lead'), iArea=idxOf('area');
+  const iStart=idxOf('start'), iEnd=idxOf('end'), iPct=idxOf('pct'), iPri=idxOf('priority');
+  const iWbs=idxOf('wbs'), iL2n=idxOf('l2_name'), iL1n=idxOf('l1_name');
+
+  const tasks = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
+    const get = idx => idx>=0 && cols[idx] ? cols[idx].replace(/^"|"$/g,'').trim() : '';
+    const l1id = get(iL1);
+    if (!l1id || !['1','2','3','4'].includes(l1id)) continue;
+    const pct = parsePct(get(iPct));
+    const endDt = parseDate(get(iEnd));
+    const startDt = parseDate(get(iStart));
+    tasks.push({
+      l1id, l1name: get(iL1n), l2name: get(iL2n),
+      wbs: get(iWbs), task: get(iTask), lead: get(iLead), area: get(iArea),
+      start: startDt, end: endDt, pct, priority: get(iPri)
+    });
+  }
+  return tasks;
+}
+
+function renderDashboard(tasks) {
+  allTasks = tasks;
+  const now = new Date().toLocaleString('th-TH');
+  document.getElementById('lastUpdate').innerHTML = `อัปเดต: ${now}`;
+
+  const total = tasks.length;
+  const done = tasks.filter(t => t.pct >= 1).length;
+  const inprog = tasks.filter(t => t.pct > 0 && t.pct < 1).length;
+  const notstart = tasks.filter(t => t.pct === 0).length;
+  const avgPct = total ? tasks.reduce((s,t)=>s+t.pct,0)/total : 0;
+  const overdue = tasks.filter(t => t.pct < 1 && t.end && daysBetween(TODAY, t.end) < 0).length;
+  const urgent = tasks.filter(t => t.pct < 1 && t.end && daysBetween(TODAY, t.end) >= 0 && daysBetween(TODAY, t.end) <= 7).length;
+
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+  <div class="kpi-grid">
+    <div class="kpi-card total"><div class="kpi-label">งานทั้งหมด</div><div class="kpi-value">${total}</div><div class="kpi-sub" style="color:var(--gray)">รายการ</div></div>
+    <div class="kpi-card done"><div class="kpi-label">เสร็จแล้ว</div><div class="kpi-value">${done}</div><div class="kpi-sub" style="color:var(--green)">${total?Math.round(done/total*100):0}% ของทั้งหมด</div></div>
+    <div class="kpi-card inprog"><div class="kpi-label">กำลังทำ</div><div class="kpi-value">${inprog}</div><div class="kpi-sub" style="color:var(--blue)">งาน</div></div>
+    <div class="kpi-card overdue"><div class="kpi-label">เกินกำหนด</div><div class="kpi-value">${overdue}</div><div class="kpi-sub" style="color:var(--red)">ต้องเร่งด่วน</div></div>
+    <div class="kpi-card urgent"><div class="kpi-label">ใกล้ครบ ≤7วัน</div><div class="kpi-value">${urgent}</div><div class="kpi-sub" style="color:var(--orange)">งาน</div></div>
+    <div class="kpi-card pct"><div class="kpi-label">ความคืบหน้า</div><div class="kpi-value">${Math.round(avgPct*100)}%</div><div class="kpi-sub" style="color:var(--teal)">ภาพรวม</div></div>
+  </div>
+
+  <div class="section-grid">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--navy)"></span>ความคืบหน้าแต่ละหมวด</div>
+      <div id="catProgress"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>สัดส่วนสถานะงาน</div>
+      <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-grid">
+    <div class="card" style="grid-column:1/-1;">
+      <div class="card-title"><span class="dot" style="background:var(--red)"></span>แจ้งเตือนงานค้าง — Alert Dashboard</div>
+      <div class="alert-filters" id="alertFilters">
+        <button class="filter-btn f-all active" onclick="filterAlert('all',this)">ทั้งหมด (${tasks.filter(t=>t.pct<1).length})</button>
+        <button class="filter-btn f-red" onclick="filterAlert('red',this)">🔴 เกินกำหนด/วิกฤต (${tasks.filter(t=>{const u=urgency(t.pct,t.end);return u.cls==='badge-red'&&t.pct<1}).length})</button>
+        <button class="filter-btn f-orange" onclick="filterAlert('orange',this)">🟠 เร่งด่วน ≤7วัน (${tasks.filter(t=>urgency(t.pct,t.end).cls==='badge-orange').length})</button>
+        <button class="filter-btn f-yellow" onclick="filterAlert('yellow',this)">🟡 เฝ้าระวัง ≤14วัน (${tasks.filter(t=>urgency(t.pct,t.end).cls==='badge-yellow').length})</button>
+        <button class="filter-btn f-green" onclick="filterAlert('green',this)">🟢 ปกติ (${tasks.filter(t=>urgency(t.pct,t.end).cls==='badge-green').length})</button>
+        <button class="filter-btn f-done" onclick="filterAlert('done',this)">✅ เสร็จ (${done})</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="alert-table" id="alertTable">
+          <thead><tr>
+            <th>WBS</th><th>รายการงาน</th><th>หมวด</th><th>Lead</th>
+            <th>End Date</th><th>% เสร็จ</th><th>สถานะ</th><th>ความเร่งด่วน</th>
+          </tr></thead>
+          <tbody id="alertBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-grid three">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--orange)"></span>Progress by หมวด (Bar)</div>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>จำนวนงานแต่ละหมวด</div>
+      <div class="chart-wrap"><canvas id="doughChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>งานใกล้ Deadline (7วัน)</div>
+      <div id="upcomingList"></div>
+    </div>
+  </div>
+
+  <div class="footer">TM Villa Construction Tracker 2026 — ข้อมูลดึงจาก Google Sheets — ${now}</div>
+  `;
+
+  buildCatProgress(tasks);
+  buildAlertTable(tasks, 'all');
+  buildCharts(tasks);
+  buildUpcoming(tasks);
+}
+
+function buildCatProgress(tasks) {
+  const el = document.getElementById('catProgress');
+  if (!el) return;
+  let html = '';
+  for (const [lid, meta] of Object.entries(CAT_META)) {
+    const group = tasks.filter(t => t.l1id === lid);
+    if (!group.length) continue;
+    const avg = group.reduce((s,t)=>s+t.pct,0)/group.length;
+    const done = group.filter(t=>t.pct>=1).length;
+    const pctInt = Math.round(avg*100);
+    html += `<div class="cat-row">
+      <div class="cat-header">
+        <span class="cat-name"><span style="font-size:16px">${meta.name.split(' ')[0]}</span>${meta.name.split(' ').slice(1).join(' ')}</span>
+        <div style="text-align:right"><div class="cat-pct" style="color:${meta.color}">${pctInt}%</div><div class="cat-counts">${done}/${group.length} เสร็จ</div></div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pctInt}%;background:${meta.color}"></div></div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+let alertFilter = 'all';
+function filterAlert(f, btn) {
+  alertFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  buildAlertTable(allTasks, f);
+}
+
+function buildAlertTable(tasks, filter) {
+  const tbody = document.getElementById('alertBody');
+  if (!tbody) return;
+  let rows = tasks;
+  if (filter !== 'done') rows = tasks.filter(t => t.pct < 1);
+
+  rows = rows.filter(t => {
+    const u = urgency(t.pct, t.end);
+    if (filter === 'all') return t.pct < 1;
+    if (filter === 'red') return u.cls === 'badge-red' && t.pct < 1;
+    if (filter === 'orange') return u.cls === 'badge-orange';
+    if (filter === 'yellow') return u.cls === 'badge-yellow';
+    if (filter === 'green') return u.cls === 'badge-green';
+    if (filter === 'done') return t.pct >= 1;
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    const ua = urgency(a.pct, a.end); const ub = urgency(b.pct, b.end);
+    const order = {'badge-red':0,'badge-orange':1,'badge-yellow':2,'badge-green':3,'badge-done':4,'badge-blue':5};
+    return (order[ua.cls]||9) - (order[ub.cls]||9);
+  });
+
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:1.5rem">ไม่มีรายการ</td></tr>`; return; }
+
+  tbody.innerHTML = rows.map(t => {
+    const u = urgency(t.pct, t.end);
+    const st = statusLabel(t.pct);
+    const pctInt = Math.round(t.pct*100);
+    const meta = CAT_META[t.l1id] || {name:'—',color:'#888'};
+    const endStr = t.end ? t.end.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}) : '—';
+    return `<tr>
+      <td style="font-weight:600;font-size:11px;color:var(--gray)">${t.wbs}</td>
+      <td><div class="task-name">${t.task}</div><div class="task-cat">${t.l2name}</div></td>
+      <td><span style="font-size:12px;color:${meta.color};font-weight:600">${meta.name.split(' ')[0]}</span></td>
+      <td style="font-size:12px">${t.lead}</td>
+      <td style="font-size:12px;white-space:nowrap">${endStr}</td>
+      <td style="white-space:nowrap">
+        <div class="mini-prog"><div class="mini-prog-fill" style="width:${pctInt}%;background:${meta.color}"></div></div>
+        <span style="font-size:12px;font-weight:600">${pctInt}%</span>
+      </td>
+      <td><span class="badge ${st.cls}">${st.t}</span></td>
+      <td><span class="badge ${u.cls}">${u.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+let charts = {};
+function buildCharts(tasks) {
+  const destroyChart = id => { if (charts[id]) { charts[id].destroy(); delete charts[id]; } };
+
+  destroyChart('statusChart'); destroyChart('barChart'); destroyChart('doughChart');
+
+  const done = tasks.filter(t=>t.pct>=1).length;
+  const inprog = tasks.filter(t=>t.pct>0&&t.pct<1).length;
+  const notstart = tasks.filter(t=>t.pct===0).length;
+
+  charts['statusChart'] = new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: { labels: ['เสร็จแล้ว','กำลังทำ','ยังไม่เริ่ม'],
+      datasets:[{ data:[done,inprog,notstart], backgroundColor:['#548235','#2E75B6','#C00000'], borderWidth:2, borderColor:'white' }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:10 } } } }
+  });
+
+  const catNames = Object.values(CAT_META).map(m=>m.name.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim());
+  const catPcts = Object.keys(CAT_META).map(lid => {
+    const g = tasks.filter(t=>t.l1id===lid);
+    return g.length ? Math.round(g.reduce((s,t)=>s+t.pct,0)/g.length*100) : 0;
+  });
+  charts['barChart'] = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: { labels: catNames,
+      datasets:[{ label:'% เสร็จ', data:catPcts,
+        backgroundColor:Object.values(CAT_META).map(m=>m.color+'99'),
+        borderColor:Object.values(CAT_META).map(m=>m.color), borderWidth:2, borderRadius:4 }] },
+    options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      scales:{ x:{ max:100, ticks:{ callback:v=>v+'%', font:{size:11} } }, y:{ ticks:{ font:{size:11} } } },
+      plugins:{ legend:{ display:false } } }
+  });
+
+  const catCounts = Object.keys(CAT_META).map(lid => tasks.filter(t=>t.l1id===lid).length);
+  charts['doughChart'] = new Chart(document.getElementById('doughChart'), {
+    type: 'pie',
+    data: { labels: catNames,
+      datasets:[{ data:catCounts, backgroundColor:Object.values(CAT_META).map(m=>m.color+'CC'), borderWidth:2, borderColor:'white' }] },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:8 } } } }
+  });
+}
+
+function buildUpcoming(tasks) {
+  const el = document.getElementById('upcomingList');
+  if (!el) return;
+  const upcoming = tasks.filter(t => t.pct < 1 && t.end && daysBetween(TODAY, t.end) >= 0 && daysBetween(TODAY, t.end) <= 7)
+    .sort((a,b) => a.end - b.end).slice(0,6);
+  if (!upcoming.length) { el.innerHTML = '<div style="color:var(--gray);font-size:13px;padding:1rem">ไม่มีงานใกล้ Deadline ใน 7 วัน</div>'; return; }
+  el.innerHTML = upcoming.map(t => {
+    const d = daysBetween(TODAY, t.end);
+    const meta = CAT_META[t.l1id]||{color:'#888'};
+    return `<div class="timeline-item">
+      <div class="tl-dot" style="background:${d<=3?'var(--red)':'var(--orange)'}"></div>
+      <div class="tl-content">
+        <div class="tl-title">${t.task}</div>
+        <div class="tl-meta">${d===0?'ครบกำหนดวันนี้':d===1?'พรุ่งนี้':'อีก '+d+' วัน'} · ${Math.round(t.pct*100)}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function connectSheet() {
+  let url = document.getElementById('sheetUrl').value.trim();
+  if (!url) { alert('กรุณากรอก URL'); return; }
+  if (url.includes('/edit') || url.includes('/view')) {
+    const m = url.match(/\/d\/([^\/]+)/);
+    if (m) url = `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:csv&sheet=DATA`;
+  }
+  document.getElementById('mainContent').innerHTML = '<div class="loading"><span class="spinner"></span>กำลังโหลดข้อมูลจาก Google Sheets...</div>';
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const csv = await resp.text();
+    const tasks = parseCSV(csv);
+    if (!tasks.length) throw new Error('ไม่พบข้อมูลในรูปแบบที่ถูกต้อง กรุณาตรวจสอบ Sheet DATA');
+    renderDashboard(tasks);
+  } catch(e) {
+    document.getElementById('mainContent').innerHTML = `<div class="loading" style="color:var(--red)">โหลดไม่สำเร็จ: ${e.message}<br><br><button onclick="document.getElementById('helpModal').classList.add('show')" style="padding:8px 20px;background:var(--blue);color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px">ดูวิธีแก้ไข</button></div>`;
+  }
+}
+
+function loadDemoData() {
+  const demo = [
+    {l1id:'1',l1name:'⚡ งานไฟฟ้า',l2name:'ระบบไฟฟ้าภายนอก',wbs:'1.1.1',task:'สำรวจและออกแบบระบบไฟฟ้า',lead:'วิศวกรไฟฟ้า',area:'ทุกอาคาร',start:new Date('2022-06-01'),end:new Date('2022-07-15'),pct:1.0,priority:'สูง'},
+    {l1id:'1',l1name:'⚡ งานไฟฟ้า',l2name:'ระบบไฟฟ้าภายนอก',wbs:'1.1.2',task:'ขออนุญาต MEA/PEA',lead:'วิศวกรไฟฟ้า',area:'ภายนอก',start:new Date('2022-07-01'),end:new Date('2022-08-15'),pct:1.0,priority:'สูง'},
+    {l1id:'1',l1name:'⚡ งานไฟฟ้า',l2name:'ระบบไฟฟ้าภายใน',wbs:'1.2.5',task:'เดินสายไฟ อาคาร C ทุกชั้น',lead:'วิศวกรไฟฟ้า',area:'อาคาร C',start:new Date('2022-10-01'),end:new Date(Date.now()+5*86400000),pct:0.7,priority:'สูง'},
+    {l1id:'1',l1name:'⚡ งานไฟฟ้า',l2name:'ระบบสำรองและทดสอบ',wbs:'1.3.1',task:'ติดตั้ง UPS ห้อง Server',lead:'IT',area:'อาคาร C',start:new Date('2023-01-25'),end:new Date(Date.now()+2*86400000),pct:0.3,priority:'กลาง'},
+    {l1id:'1',l1name:'⚡ งานไฟฟ้า',l2name:'ระบบสำรองและทดสอบ',wbs:'1.3.3',task:'ทดสอบระบบไฟฟ้า (Load Test)',lead:'วิศวกรไฟฟ้า+IT',area:'ทุกอาคาร',start:new Date('2023-02-10'),end:new Date(Date.now()-3*86400000),pct:0.0,priority:'สูง'},
+    {l1id:'2',l1name:'📡 งานสื่อสาร',l2name:'Network Infrastructure',wbs:'2.1.1',task:'เดินสาย LAN อาคาร A',lead:'P.T.Pro',area:'อาคาร A',start:new Date('2022-07-25'),end:new Date('2023-01-15'),pct:1.0,priority:'สูง'},
+    {l1id:'2',l1name:'📡 งานสื่อสาร',l2name:'WiFi / Access Point',wbs:'2.2.4',task:'Config WiFi SSID / VLAN / QoS',lead:'ChiChang+IT',area:'ทุกอาคาร',start:new Date('2023-01-06'),end:new Date(Date.now()+6*86400000),pct:0.8,priority:'กลาง'},
+    {l1id:'2',l1name:'📡 งานสื่อสาร',l2name:'TV in Room',wbs:'2.3.3',task:'ติดตั้ง TV ห้องพัก อาคาร C',lead:'ChiChang',area:'อาคาร C',start:new Date('2023-01-22'),end:new Date(Date.now()+10*86400000),pct:0.0,priority:'ต่ำ'},
+    {l1id:'2',l1name:'📡 งานสื่อสาร',l2name:'Internet ISP',wbs:'2.4.3',task:'ทดสอบ Internet Speed + Failover',lead:'IT',area:'ห้อง Server',start:new Date('2023-02-20'),end:new Date(Date.now()-1*86400000),pct:0.0,priority:'สูง'},
+    {l1id:'3',l1name:'🔐 IoT Security',l2name:'Door Lock',wbs:'3.1.5',task:'ติดตั้ง Door Lock อาคาร C',lead:'Owner+IT',area:'อาคาร C',start:new Date('2023-01-06'),end:new Date(Date.now()+4*86400000),pct:0.0,priority:'สูง'},
+    {l1id:'3',l1name:'🔐 IoT Security',l2name:'Tuya Platform',wbs:'3.2.3',task:'ติดตั้ง Smart Sensor',lead:'IT',area:'ห้องพัก',start:new Date('2023-01-06'),end:new Date(Date.now()+15*86400000),pct:0.3,priority:'กลาง'},
+    {l1id:'3',l1name:'🔐 IoT Security',l2name:'Testing & Training',wbs:'3.3.1',task:'ทดสอบ Remote Lock/Unlock',lead:'IT+Owner',area:'ทุกอาคาร',start:new Date('2023-01-20'),end:new Date(Date.now()+20*86400000),pct:0.0,priority:'สูง'},
+    {l1id:'4',l1name:'📹 งาน CCTV',l2name:'Camera Installation',wbs:'4.3.1',task:'ติดตั้ง & Config กล้อง อาคาร A',lead:'ChiChang',area:'อาคาร A',start:new Date('2023-01-06'),end:new Date(Date.now()+8*86400000),pct:0.9,priority:'สูง'},
+    {l1id:'4',l1name:'📹 งาน CCTV',l2name:'Config, Test & Training',wbs:'4.4.1',task:'Config NVR + Recording Schedule',lead:'ChiChang+IT',area:'ห้อง Server',start:new Date('2023-01-25'),end:new Date(Date.now()+3*86400000),pct:0.0,priority:'สูง'},
+    {l1id:'4',l1name:'📹 งาน CCTV',l2name:'Config, Test & Training',wbs:'4.4.2',task:'ทดสอบ CCTV ทุกจุด',lead:'ChiChang+IT',area:'ทุกอาคาร',start:new Date('2023-02-01'),end:new Date(Date.now()+30*86400000),pct:0.0,priority:'สูง'},
+  ];
+  renderDashboard(demo);
+}
+
+function loadData() {
+  const url = document.getElementById('sheetUrl').value.trim();
+  if (url) connectSheet(); else loadDemoData();
+}
+</script>
+</body>
+</html>
