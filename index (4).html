@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>TM Villa — Construction Tracker 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#F0F4F8;color:#1a1a2e;min-height:100vh}
+.hdr{background:#1F3864;color:white;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.hdr-l{display:flex;align-items:center;gap:10px}
+.hicon{width:34px;height:34px;background:#ED7D31;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.htitle{font-size:15px;font-weight:700}
+.hsub{font-size:10px;opacity:.6;margin-top:1px}
+.hbtn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:white;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;margin-left:6px}
+.hbtn:hover{background:rgba(255,255,255,.25)}
+.main{max-width:1400px;margin:0 auto;padding:1.25rem 1.5rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:1.25rem}
+.kpi{background:white;border-radius:12px;padding:.85rem 1rem;border:1px solid #e0e6ee}
+.kpi-lbl{font-size:10px;color:#595959;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.kpi-val{font-size:26px;font-weight:700;line-height:1}
+.kpi-sub{font-size:11px;margin-top:5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:white;border-radius:12px;padding:1.1rem;border:1px solid #e0e6ee}
+.ctitle{font-size:11px;font-weight:700;color:#1F3864;margin-bottom:.85rem;text-transform:uppercase;letter-spacing:.3px;display:flex;align-items:center;gap:5px}
+.ctitle .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.cat-row{margin-bottom:12px}
+.cat-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.cat-nm{font-size:12px;font-weight:600}
+.cat-pct{font-size:12px;font-weight:700}
+.cat-ct{font-size:10px;color:#595959}
+.bar-track{height:9px;background:#EEF2F7;border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;transition:width 1s ease}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap}
+.badge-red{background:#FFCCCC;color:#C00000}
+.badge-orange{background:#FCE4D6;color:#8B4513}
+.badge-yellow{background:#FFF2CC;color:#7F6000}
+.badge-green{background:#E2EFDA;color:#548235}
+.badge-blue{background:#DAEEF3;color:#1A5276}
+.badge-done{background:#E0F2F1;color:#00897B}
+.filters{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.fbtn{padding:3px 10px;border-radius:14px;border:1px solid #DDE3EC;background:white;font-size:11px;cursor:pointer;font-weight:500;transition:all .15s}
+.fbtn.active{color:white;border-color:transparent}
+.fbtn.fa.active{background:#1F3864}.fbtn.fr.active{background:#C00000}
+.fbtn.fo.active{background:#ED7D31}.fbtn.fy.active{background:#B7950B}
+.fbtn.fg.active{background:#548235}.fbtn.fd.active{background:#00897B}
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{background:#F8FAFC;color:#595959;font-weight:700;padding:7px 8px;text-align:left;border-bottom:2px solid #EEF2F7;font-size:10px;text-transform:uppercase;white-space:nowrap}
+.tbl td{padding:7px 8px;border-bottom:1px solid #F0F4F8;vertical-align:middle}
+.tbl tr:hover td{background:#FAFBFD}
+.mini-prog{width:50px;height:5px;background:#EEF2F7;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:3px}
+.mini-fill{height:100%;border-radius:3px}
+.task-nm{font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task-ct{font-size:10px;color:#595959}
+.chart-wrap{position:relative;height:170px}
+.tl-item{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
+.tl-dot{width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.tl-title{font-size:11px;font-weight:600}
+.tl-meta{font-size:10px;color:#595959}
+.loading{text-align:center;padding:3rem;color:#888;font-size:14px}
+.spinner{display:inline-block;width:22px;height:22px;border:3px solid #DDE3EC;border-top-color:#2E75B6;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:white;border-radius:16px;padding:1.5rem;width:90%;max-width:480px}
+.modal h3{font-size:15px;font-weight:700;color:#1F3864;margin-bottom:.85rem}
+.modal p{font-size:12px;line-height:1.7;color:#444;margin-bottom:.6rem}
+.modal code{background:#F0F4F8;padding:2px 5px;border-radius:4px;font-family:monospace;font-size:11px}
+.modal-close{float:right;background:none;border:none;font-size:18px;cursor:pointer;color:#595959}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="hicon">🏨</div>
+    <div><div class="htitle">TM Villa — Construction Tracker 2026</div><div class="hsub">IT Infrastructure Progress Dashboard</div></div>
+  </div>
+  <div style="display:flex;align-items:center">
+    <div id="lastUp" style="font-size:10px;opacity:.7;text-align:right;margin-right:8px"></div>
+    <button class="hbtn" onclick="loadData()">⟳ รีเฟรช</button>
+    <button class="hbtn" onclick="document.getElementById('helpModal').classList.add('show')">? วิธีใช้</button>
+  </div>
+</div>
+<div class="main" id="mc"><div class="loading"><span class="spinner"></span>กำลังโหลดข้อมูล...</div></div>
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('helpModal').classList.remove('show')">✕</button>
+    <h3>📋 วิธีอัปเดตข้อมูล</h3>
+    <p>1. เปิด Google Sheets (TMVilla Tracker)</p>
+    <p>2. แก้ไขข้อมูลใน DATA sheet คอลัมน์ K (PCT_DONE)</p>
+    <p>3. กลับมาที่ Dashboard → กด ⟳ รีเฟรช</p>
+    <p>4. ข้อมูลจะอัปเดตภายใน 1-2 นาที</p>
+    <p style="background:#FFF3E0;padding:8px;border-radius:6px;margin-top:8px;font-size:11px">⚙️ Dashboard ดึงข้อมูลจาก Google Sheets DATA sheet โดยตรง — เพิ่ม/ลบงานใน DATA แล้ว Dashboard อัปเดตอัตโนมัติ</p>
+  </div>
+</div>
+<script>
+const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSGZEuMXBqNNL_szSQFvxwfXWcOyq5HsjHFGe-SGTn27-YrkVEW-QzKRySOyYVbeg/pub?gid=1555499331&single=true&output=csv";
+const NOW=new Date(); NOW.setHours(0,0,0,0);
+const diff=(a,b)=>Math.round((b-a)/864e5);
+const PALETTE=['#ED7D31','#2E75B6','#548235','#C55A11','#7030A0','#00897B','#C2185B','#5D4037','#F9A825','#0097A7','#455A64','#AD1457'];
+let CAT={};
+function buildCat_map(tasks){
+  CAT={};
+  let i=0;
+  for(const t of tasks){
+    if(!CAT[t.l1id]){
+      CAT[t.l1id]={n:t.l1name||('หมวด '+t.l1id),c:PALETTE[i%PALETTE.length]};
+      i++;
+    }
+  }
+}
+function urg(pct,end){
+  if(pct>=1) return{l:'✅ เสร็จ',cls:'badge-done'};
+  if(!end)   return{l:'—',cls:'badge-blue'};
+  const d=diff(NOW,end);
+  if(d<0)   return{l:'🔴 เกินกำหนด',cls:'badge-red'};
+  if(d<=3)  return{l:'🔴 วิกฤต ≤3วัน',cls:'badge-red'};
+  if(d<=7)  return{l:'🟠 เร่งด่วน ≤7วัน',cls:'badge-orange'};
+  if(d<=14) return{l:'🟡 เฝ้าระวัง ≤14วัน',cls:'badge-yellow'};
+  return{l:'🟢 ปกติ',cls:'badge-green'};
+}
+function st(pct){
+  if(pct>=1)   return{t:'✅ เสร็จ',cls:'badge-done'};
+  if(pct>=0.5) return{t:'🔄 กำลังทำ',cls:'badge-blue'};
+  if(pct>0)    return{t:'⏳ เริ่มแล้ว',cls:'badge-orange'};
+  return{t:'❌ ยังไม่เริ่ม',cls:'badge-red'};
+}
+function parseDate(s){
+  if(!s) return null; s=String(s).trim();
+  let d;
+  if(s.includes('/'))  {const p=s.split('/');d=p[0].length===4?new Date(+p[0],+p[1]-1,+p[2]):new Date(+p[2],+p[1]-1,+p[0]);}
+  else if(s.includes('-')) {const p=s.split('-');d=p[0].length===4?new Date(+p[0],+p[1]-1,+p[2]):new Date(+p[2],+p[1]-1,+p[0]);}
+  else if(!isNaN(+s))  {const ms=Date.UTC(1899,11,30)+(+s)*864e5;const u=new Date(ms);d=new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate());}
+  return(d&&!isNaN(d))?d:null;
+}
+function parsePct(v){
+  if(!v&&v!==0) return 0;
+  v=String(v).trim().replace('%','');
+  const n=parseFloat(v); if(isNaN(n)) return 0;
+  return n>1?n/100:n;
+}
+function parseCSV(csv){
+  const lines=csv.split('\n').filter(l=>l.trim());
+  if(lines.length<2) return[];
+  const h=lines[0].split(',').map(x=>x.trim().replace(/"/g,'').toLowerCase());
+  const ix=k=>h.findIndex(x=>x.includes(k));
+  const iL1=ix('l1_id'),iL1n=ix('l1_name'),iL2n=ix('l2_name');
+  const iW=ix('wbs'),iT=ix('task'),iLd=ix('lead'),iAr=ix('area');
+  const iS=ix('start'),iE=ix('end'),iP=ix('pct'),iPr=ix('priority');
+  const tasks=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=[]; let cur='',inQ=false;
+    for(const ch of lines[i]+','){
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=ch;
+    }
+    const g=idx=>idx>=0&&cols[idx]?cols[idx].trim():'';
+    const l1=g(iL1); if(!l1) continue;
+    tasks.push({l1id:l1,l1name:g(iL1n),l2name:g(iL2n),wbs:g(iW),
+      task:g(iT),lead:g(iLd),area:g(iAr),
+      start:parseDate(g(iS)),end:parseDate(g(iE)),
+      pct:parsePct(g(iP)),priority:g(iPr)});
+  }
+  return tasks;
+}
+let all=[],charts_={};
+function render(tasks){
+  all=tasks;
+  buildCat_map(tasks);
+  document.getElementById('lastUp').innerHTML='อัปเดต: '+new Date().toLocaleTimeString('th-TH');
+  const T=tasks.length,D=tasks.filter(t=>t.pct>=1).length;
+  const I=tasks.filter(t=>t.pct>0&&t.pct<1).length;
+  const OD=tasks.filter(t=>t.pct<1&&t.end&&diff(NOW,t.end)<0).length;
+  const U=tasks.filter(t=>t.pct<1&&t.end&&diff(NOW,t.end)>=0&&diff(NOW,t.end)<=7).length;
+  const A=T?Math.round(tasks.reduce((s,t)=>s+t.pct,0)/T*100):0;
+  document.getElementById('mc').innerHTML=`
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-lbl">งานทั้งหมด</div><div class="kpi-val" style="color:#1F3864">${T}</div><div class="kpi-sub" style="color:#595959">รายการ</div></div>
+  <div class="kpi"><div class="kpi-lbl">เสร็จแล้ว</div><div class="kpi-val" style="color:#548235">${D}</div><div class="kpi-sub" style="color:#548235">${T?Math.round(D/T*100):0}% ของทั้งหมด</div></div>
+  <div class="kpi"><div class="kpi-lbl">กำลังทำ</div><div class="kpi-val" style="color:#2E75B6">${I}</div><div class="kpi-sub" style="color:#2E75B6">งาน</div></div>
+  <div class="kpi"><div class="kpi-lbl">เกินกำหนด</div><div class="kpi-val" style="color:#C00000">${OD}</div><div class="kpi-sub" style="color:#C00000">ต้องเร่งด่วน</div></div>
+  <div class="kpi"><div class="kpi-lbl">ใกล้ครบ ≤7วัน</div><div class="kpi-val" style="color:#ED7D31">${U}</div><div class="kpi-sub" style="color:#ED7D31">งาน</div></div>
+  <div class="kpi"><div class="kpi-lbl">ความคืบหน้า</div><div class="kpi-val" style="color:#00897B">${A}%</div><div class="kpi-sub" style="color:#00897B">ภาพรวม</div></div>
+</div>
+<div class="grid2">
+  <div class="card"><div class="ctitle"><span class="dot" style="background:#1F3864"></span>ความคืบหน้าแต่ละหมวด</div><div id="catProg"></div></div>
+  <div class="card"><div class="ctitle"><span class="dot" style="background:#2E75B6"></span>สัดส่วนสถานะงาน</div><div class="chart-wrap"><canvas id="sCh"></canvas></div></div>
+</div>
+<div class="card" style="margin-bottom:12px">
+  <div class="ctitle"><span class="dot" style="background:#C00000"></span>แจ้งเตือนงานค้าง — Alert Dashboard</div>
+  <div class="filters" id="filt">
+    <button class="fbtn fa active" onclick="fa('all',this)">ทั้งหมด (${tasks.filter(t=>t.pct<1).length})</button>
+    <button class="fbtn fr" onclick="fa('red',this)">🔴 เกินกำหนด (${tasks.filter(t=>urg(t.pct,t.end).cls==='badge-red'&&t.pct<1).length})</button>
+    <button class="fbtn fo" onclick="fa('org',this)">🟠 ≤7วัน (${tasks.filter(t=>urg(t.pct,t.end).cls==='badge-orange').length})</button>
+    <button class="fbtn fy" onclick="fa('yel',this)">🟡 ≤14วัน (${tasks.filter(t=>urg(t.pct,t.end).cls==='badge-yellow').length})</button>
+    <button class="fbtn fg" onclick="fa('grn',this)">🟢 ปกติ (${tasks.filter(t=>urg(t.pct,t.end).cls==='badge-green').length})</button>
+    <button class="fbtn fd" onclick="fa('done',this)">✅ เสร็จ (${D})</button>
+  </div>
+  <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>WBS</th><th>รายการงาน</th><th>หมวด L2</th><th>Lead</th><th>End</th><th>%</th><th>สถานะ</th><th>Alert</th></tr></thead><tbody id="atbl"></tbody></table></div>
+</div>
+<div class="grid3">
+  <div class="card"><div class="ctitle"><span class="dot" style="background:#ED7D31"></span>% เสร็จแต่ละหมวด</div><div class="chart-wrap"><canvas id="bCh"></canvas></div></div>
+  <div class="card"><div class="ctitle"><span class="dot" style="background:#548235"></span>จำนวนงานแต่ละหมวด</div><div class="chart-wrap"><canvas id="dCh"></canvas></div></div>
+  <div class="card"><div class="ctitle"><span class="dot" style="background:#7030A0"></span>ใกล้ Deadline ใน 7 วัน</div><div id="upList"></div></div>
+</div>
+<div style="text-align:center;font-size:10px;color:#AAB;padding:.75rem">TM Villa Construction Tracker 2026 — ข้อมูลจาก Google Sheets DATA sheet</div>`;
+  buildCat(tasks); buildAlert(tasks,'all'); buildCharts(tasks); buildUp(tasks);
+}
+function buildCat(tasks){
+  const el=document.getElementById('catProg'); if(!el) return;
+  let h='';
+  for(const[lid,m] of Object.entries(CAT)){
+    const g=tasks.filter(t=>t.l1id===lid);
+    if(!g.length) continue;
+    const a=Math.round(g.reduce((s,t)=>s+t.pct,0)/g.length*100);
+    const d=g.filter(t=>t.pct>=1).length;
+    h+=`<div class="cat-row"><div class="cat-hdr">
+      <span class="cat-nm">${m.n}</span>
+      <div style="text-align:right"><div class="cat-pct" style="color:${m.c}">${a}%</div><div class="cat-ct">${d}/${g.length} เสร็จ</div></div>
+    </div><div class="bar-track"><div class="bar-fill" style="width:${a}%;background:${m.c}"></div></div></div>`;
+  }
+  el.innerHTML=h;
+}
+let curF='all';
+function fa(f,btn){curF=f;document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');buildAlert(all,f);}
+function buildAlert(tasks,f){
+  const tb=document.getElementById('atbl'); if(!tb) return;
+  const clsMap={all:t=>t.pct<1,red:t=>urg(t.pct,t.end).cls==='badge-red'&&t.pct<1,
+    org:t=>urg(t.pct,t.end).cls==='badge-orange',yel:t=>urg(t.pct,t.end).cls==='badge-yellow',
+    grn:t=>urg(t.pct,t.end).cls==='badge-green',done:t=>t.pct>=1};
+  let rows=tasks.filter(clsMap[f]||clsMap.all);
+  const ord={'badge-red':0,'badge-orange':1,'badge-yellow':2,'badge-green':3,'badge-done':4,'badge-blue':5};
+  rows.sort((a,b)=>(ord[urg(a.pct,a.end).cls]||9)-(ord[urg(b.pct,b.end).cls]||9));
+  if(!rows.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:1.2rem;color:#888">ไม่มีรายการ</td></tr>';return;}
+  tb.innerHTML=rows.map(t=>{
+    const u=urg(t.pct,t.end),s=st(t.pct),m=CAT[t.l1id]||{n:'—',c:'#888'};
+    const p=Math.round(t.pct*100);
+    const es=t.end?t.end.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'—';
+    return`<tr><td style="font-size:10px;color:#888;font-weight:600">${t.wbs}</td>
+      <td><div class="task-nm">${t.task}</div><div class="task-ct">${t.l2name}</div></td>
+      <td style="font-size:11px;color:${m.c};font-weight:600;white-space:nowrap">${m.n}</td>
+      <td style="font-size:11px">${t.lead}</td>
+      <td style="font-size:11px;white-space:nowrap">${es}</td>
+      <td style="white-space:nowrap"><div class="mini-prog"><div class="mini-fill" style="width:${p}%;background:${m.c}"></div></div><span style="font-size:11px;font-weight:600">${p}%</span></td>
+      <td><span class="badge ${s.cls}">${s.t}</span></td>
+      <td><span class="badge ${u.cls}">${u.l}</span></td></tr>`;
+  }).join('');
+}
+function buildCharts(tasks){
+  for(const id of['sCh','bCh','dCh']){if(charts_[id]){charts_[id].destroy();delete charts_[id];}}
+  const D=tasks.filter(t=>t.pct>=1).length,I=tasks.filter(t=>t.pct>0&&t.pct<1).length,Ns=tasks.filter(t=>t.pct===0).length;
+  charts_['sCh']=new Chart(document.getElementById('sCh'),{type:'doughnut',
+    data:{labels:['เสร็จ','กำลังทำ','ยังไม่เริ่ม'],datasets:[{data:[D,I,Ns],backgroundColor:['#548235','#2E75B6','#C00000'],borderWidth:2,borderColor:'white'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8}}}}});
+  const cn=Object.values(CAT).map(m=>m.n.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim());
+  const cp=Object.keys(CAT).map(l=>{const g=tasks.filter(t=>t.l1id===l);return g.length?Math.round(g.reduce((s,t)=>s+t.pct,0)/g.length*100):0;});
+  charts_['bCh']=new Chart(document.getElementById('bCh'),{type:'bar',
+    data:{labels:cn,datasets:[{label:'%',data:cp,backgroundColor:Object.values(CAT).map(m=>m.c+'99'),borderColor:Object.values(CAT).map(m=>m.c),borderWidth:2,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{max:100,ticks:{callback:v=>v+'%',font:{size:10}}},y:{ticks:{font:{size:10}}}},
+      plugins:{legend:{display:false}}}});
+  const cc=Object.keys(CAT).map(l=>tasks.filter(t=>t.l1id===l).length);
+  charts_['dCh']=new Chart(document.getElementById('dCh'),{type:'pie',
+    data:{labels:cn,datasets:[{data:cc,backgroundColor:Object.values(CAT).map(m=>m.c+'CC'),borderWidth:2,borderColor:'white'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:6}}}}});
+}
+function buildUp(tasks){
+  const el=document.getElementById('upList'); if(!el) return;
+  const up=tasks.filter(t=>t.pct<1&&t.end&&diff(NOW,t.end)>=0&&diff(NOW,t.end)<=7).sort((a,b)=>a.end-b.end).slice(0,6);
+  if(!up.length){el.innerHTML='<div style="color:#888;font-size:12px;padding:.5rem">ไม่มีงานใกล้ Deadline ใน 7 วัน 🎉</div>';return;}
+  el.innerHTML=up.map(t=>{const d=diff(NOW,t.end);return`<div class="tl-item">
+    <div class="tl-dot" style="background:${d<=3?'#C00000':'#ED7D31'}"></div>
+    <div><div class="tl-title">${t.task}</div><div class="tl-meta">${d===0?'ครบกำหนดวันนี้':d===1?'พรุ่งนี้':'อีก '+d+' วัน'} · ${Math.round(t.pct*100)}%</div></div>
+  </div>`}).join('');
+}
+async function loadData(){
+  document.getElementById('lastUp').innerHTML='กำลังโหลด...';
+  try{
+    const r=await fetch(SHEET_URL+'&cachebust='+Date.now());
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const csv=await r.text();
+    const tasks=parseCSV(csv);
+    if(!tasks.length) throw new Error('ไม่พบข้อมูลใน DATA sheet');
+    render(tasks);
+  }catch(e){
+    document.getElementById('lastUp').innerHTML='โหลดไม่สำเร็จ';
+    document.getElementById('mc').innerHTML='<div class="loading" style="color:#C00000">โหลดไม่สำเร็จ: '+e.message+'<br><br>ตรวจสอบว่า Google Sheets เผยแพร่เป็น CSV แล้ว</div>';
+    console.error(e);
+  }
+}
+window.addEventListener('DOMContentLoaded',loadData);
+</script>
+</body>
+</html>
